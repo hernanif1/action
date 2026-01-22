@@ -26,7 +26,11 @@ runs:
     - name: Install dependencies
       shell: bash
       run: |
-        npm ci
+        if [ -f package-lock.json ]; then
+          npm ci
+        else
+          npm install
+        fi
 
     - name: Run e2e tests
       id: e2e-test

@@ -16,120 +16,18 @@ inputs:
     default: 'playwright-report'
 
 outputs:
-  report_url:
-    description: 'URL to the published test report'
-    value: ${{ steps.report-url.outputs.report_url }}
+  test_outcome:
+    description: 'Outcome of the e2e tests'
+    value: ${{ steps.e2e-test.outcome }}
 
 runs:
   using: 'composite'
   steps:
-    - name: Install dependencies
-      shell: bash
-      run: |
-        if [ -f package-lock.json ]; then
-          npm ci
-        else
-          npm install
-        fi
-
-    - name: Install Playwright browsers
-      shell: bash
-      run: |
-        npx playwright install --with-deps chromium
-
-    - name: Build application
-      shell: bash
-      run: |
-        npm run build
-
-    - name: Start built application
-      shell: bash
-      run: |
-        npx vite preview --host 0.0.0.0 --port 4173 &
-        # Wait for the preview server to be ready
-        for i in {1..30}; do
-          if curl -f http://localhost:4173 > /dev/null 2>&1; then
-            echo "Preview server is ready"
-            break
-          fi
-          sleep 1
-        done
-
     - name: Run e2e tests
       id: e2e-test
       continue-on-error: true
       shell: bash
       env:
-        BASE_URL: 'http://localhost:4173'
-        TEST_BUILT_APP: 'true'
+        BASE_URL: ${{ inputs.base_url }}
+        TEST_BUILT_APP: ${{ inputs.base_url != 'http://localhost:5173' }}
       run: ${{ inputs.test_command }}
-
-    - name: Prepare deployment artifacts
-      shell: bash
-      run: |
-        mkdir -p deploy
-        # Copy built app to deploy directory
-        cp -r dist/* deploy/
-        # Copy test reports to a subdirectory
-        mkdir -p deploy/reports
-        cp -r ${{ inputs.report_path }}/* deploy/reports/ || true
-
-    - name: Setup Pages
-      uses: actions/configure-pages@v4
-
-    - name: Upload artifact
-      uses: actions/upload-pages-artifact@v3
-      with:
-        path: deploy
-
-    - name: Deploy to GitHub Pages
-      id: deploy
-      uses: actions/deploy-pages@v4
-
-    - name: Calculate report URL
-      id: report-url
-      shell: bash
-      run: |
-        REPO_FULL="${{ github.repository }}"
-        OWNER=$(echo "${REPO_FULL}" | cut -d'/' -f1)
-        REPO=$(echo "${REPO_FULL}" | cut -d'/' -f2)
-        REPORT_URL="https://${OWNER}.github.io/${REPO}/"
-        echo "report_url=${REPORT_URL}" >> $GITHUB_OUTPUT
-
-    - name: Comment PR with report link
-      if: github.event_name == 'pull_request' && steps.e2e-test.outcome == 'success'
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const repo = context.repo;
-          const owner = repo.owner;
-          const repoName = repo.repo;
-          const appUrl = `https://${owner}.github.io/${repoName}/`;
-          const reportUrl = `https://${owner}.github.io/${repoName}/reports/`;
-          const comment = `## 🚀 Deployment & Test Report\n\n🌐 [View Application](${appUrl})\n📊 [View Test Report](${reportUrl})\n\n✅ Tests completed successfully!`;
-          
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: owner,
-            repo: repoName,
-            body: comment
-          });
-
-    - name: Comment PR on test failure
-      if: github.event_name == 'pull_request' && steps.e2e-test.outcome == 'failure'
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const repo = context.repo;
-          const owner = repo.owner;
-          const repoName = repo.repo;
-          const appUrl = `https://${owner}.github.io/${repoName}/`;
-          const reportUrl = `https://${owner}.github.io/${repoName}/reports/`;
-          const comment = `## 🚀 Deployment & Test Report\n\n🌐 [View Application](${appUrl})\n📊 [View Test Report](${reportUrl})\n\n❌ Tests failed!\n\nPlease check the workflow logs for more details.`;
-          
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: owner,
-            repo: repoName,
-            body: comment
-          });

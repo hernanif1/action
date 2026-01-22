@@ -32,6 +32,11 @@ runs:
           npm install
         fi
 
+    - name: Install Playwright browsers
+      shell: bash
+      run: |
+        npx playwright install --with-deps chromium
+
     - name: Run e2e tests
       id: e2e-test
       shell: bash

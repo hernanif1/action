@@ -42,12 +42,26 @@ runs:
       run: |
         npm run build
 
+    - name: Start built application
+      shell: bash
+      run: |
+        npx vite preview --host 0.0.0.0 --port 4173 &
+        # Wait for the preview server to be ready
+        for i in {1..30}; do
+          if curl -f http://localhost:4173 > /dev/null 2>&1; then
+            echo "Preview server is ready"
+            break
+          fi
+          sleep 1
+        done
+
     - name: Run e2e tests
       id: e2e-test
       continue-on-error: true
       shell: bash
       env:
-        BASE_URL: ${{ inputs.base_url }}
+        BASE_URL: 'http://localhost:4173'
+        TEST_BUILT_APP: 'true'
       run: ${{ inputs.test_command }}
 
     - name: Prepare deployment artifacts

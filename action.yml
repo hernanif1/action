@@ -37,6 +37,11 @@ runs:
       run: |
         npx playwright install --with-deps chromium
 
+    - name: Build application
+      shell: bash
+      run: |
+        npm run build
+
     - name: Run e2e tests
       id: e2e-test
       continue-on-error: true
@@ -45,13 +50,23 @@ runs:
         BASE_URL: ${{ inputs.base_url }}
       run: ${{ inputs.test_command }}
 
+    - name: Prepare deployment artifacts
+      shell: bash
+      run: |
+        mkdir -p deploy
+        # Copy built app to deploy directory
+        cp -r dist/* deploy/
+        # Copy test reports to a subdirectory
+        mkdir -p deploy/reports
+        cp -r ${{ inputs.report_path }}/* deploy/reports/ || true
+
     - name: Setup Pages
       uses: actions/configure-pages@v4
 
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
       with:
-        path: ${{ inputs.report_path }}
+        path: deploy
 
     - name: Deploy to GitHub Pages
       id: deploy
@@ -75,8 +90,9 @@ runs:
           const repo = context.repo;
           const owner = repo.owner;
           const repoName = repo.repo;
-          const reportUrl = `https://${owner}.github.io/${repoName}/`;
-          const comment = `## 🧪 E2E Test Report\n\n📊 [View Test Report](${reportUrl})\n\n✅ Tests completed successfully!`;
+          const appUrl = `https://${owner}.github.io/${repoName}/`;
+          const reportUrl = `https://${owner}.github.io/${repoName}/reports/`;
+          const comment = `## 🚀 Deployment & Test Report\n\n🌐 [View Application](${appUrl})\n📊 [View Test Report](${reportUrl})\n\n✅ Tests completed successfully!`;
           
           github.rest.issues.createComment({
             issue_number: context.issue.number,
@@ -93,8 +109,9 @@ runs:
           const repo = context.repo;
           const owner = repo.owner;
           const repoName = repo.repo;
-          const reportUrl = `https://${owner}.github.io/${repoName}/`;
-          const comment = `## 🧪 E2E Test Report\n\n❌ Tests failed!\n\n📊 [View Test Report](${reportUrl})\n\nPlease check the workflow logs for more details.`;
+          const appUrl = `https://${owner}.github.io/${repoName}/`;
+          const reportUrl = `https://${owner}.github.io/${repoName}/reports/`;
+          const comment = `## 🚀 Deployment & Test Report\n\n🌐 [View Application](${appUrl})\n📊 [View Test Report](${reportUrl})\n\n❌ Tests failed!\n\nPlease check the workflow logs for more details.`;
           
           github.rest.issues.createComment({
             issue_number: context.issue.number,
